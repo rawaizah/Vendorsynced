@@ -1,61 +1,40 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
-st.set_page_config(page_title="VendorSynced", page_icon="🎉", layout="wide")
+st.set_page_config(page_title="VendorSynced", page_icon="🔗", layout="wide")
 
-st.title("🎉 VendorSynced - Vendor Management")
-st.write("Apne vendors ko asani se manage karein")
+st.title("🔗 VendorSynced")
+st.caption("Sync. Manage. Scale — Lovable style on Streamlit")
 
 if 'vendors' not in st.session_state:
-    st.session_state.vendors = []
+    st.session_state.vendors = [
+        {"Vendor": "Royal Catering", "Category": "Catering", "Status": "Synced ✅", "Cost": 150000, "Contact": "0300-1234567"},
+        {"Vendor": "Bloom Decor", "Category": "Decor", "Status": "Pending ⏳", "Cost": 85000, "Contact": "0321-7654321"},
+        {"Vendor": "Click Studio", "Category": "Photography", "Status": "Synced ✅", "Cost": 60000, "Contact": "0333-1112233"},
+    ]
 
-with st.form("vendor_form"):
-    st.subheader("Add New Vendor")
-    col1, col2 = st.columns(2)
-    with col1:
-        name = st.text_input("Vendor Name *")
-        company = st.text_input("Company")
-        category = st.selectbox("Category", ["Catering", "Decor", "Photography", "Music", "Other"])
-    with col2:
-        cost = st.number_input("Total Cost", min_value=0)
-        advance = st.number_input("Advance Paid", min_value=0)
-        phone = st.text_input("Phone")
-    
-    submitted = st.form_submit_button("➕ Add Vendor", use_container_width=True)
-    if submitted:
-        if not name:
-            st.error("Name likhna zaroori hai!")
-        else:
-            st.session_state.vendors.append({
-                "Name": name,
-                "Company": company,
-                "Category": category,
-                "Cost": cost,
-                "Advance": advance,
-                "Balance": cost - advance,
-                "Phone": phone
-            })
-            st.success(f"{name} add ho gaya!")
+df = pd.DataFrame(st.session_state.vendors)
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Total Vendors", len(df))
+c2.metric("Synced", len(df[df['Status'].str.contains("Synced")]))
+c3.metric("Total Budget", f"Rs. {df['Cost'].sum():,}")
+
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "👥 Vendors", "➕ Add Vendor"])
+
+with tab1:
+    st.dataframe(df, use_container_width=True, hide_index=True)
+    st.bar_chart(df.groupby("Category")["Cost"].sum())
+
+with tab2:
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+with tab3:
+    with st.form("add", clear_on_submit=True):
+        name = st.text_input("Vendor Name")
+        cat = st.selectbox("Category", ["Catering","Decor","Photography","Music","Venue"])
+        cost = st.number_input("Cost", min_value=0, step=1000)
+        if st.form_submit_button("Save & Sync"):
+            st.session_state.vendors.append({"Vendor":name, "Category":cat, "Status":"Synced ✅", "Cost":cost, "Contact":""})
+            st.success("Added!")
             st.rerun()
-
-st.divider()
-
-if st.session_state.vendors:
-    df = pd.DataFrame(st.session_state.vendors)
-    
-    search = st.text_input("🔍 Search vendor...", placeholder="Name ya Company search karein")
-    if search:
-        df = df[df.apply(lambda row: row.astype(str).str.contains(search, case=False).any(), axis=1)]
-    
-    st.dataframe(df, use_container_width=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Total Vendors", len(df))
-    with col2:
-        st.metric("Total Balance", f"Rs. {df['Balance'].sum()}")
-    
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("📥 Excel (CSV) Download", csv, "vendorsynced.csv", "text/csv", use_container_width=True)
-else:
-    st.info("Abhi koi vendor nahi hai. Upar form se add karein.")
